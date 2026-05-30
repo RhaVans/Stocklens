@@ -1,15 +1,19 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
-export default function RevenueChart({ data }) {
+export default function RevenueChart({ data, currency = 'USD' }) {
   if (!data || data.length === 0) return null;
 
-  // Format big numbers
+  // Format big numbers dynamically
   const formatValue = (value) => {
-    if (Math.abs(value) >= 1e9) return `$${(value / 1e9).toFixed(1)}B`;
-    if (Math.abs(value) >= 1e6) return `$${(value / 1e6).toFixed(1)}M`;
-    if (Math.abs(value) >= 1e3) return `$${(value / 1e3).toFixed(1)}K`;
-    return `$${value}`;
+    const prefix = currency === 'USD' ? '$' : '';
+    const suffix = currency !== 'USD' ? ` ${currency}` : '';
+
+    if (Math.abs(value) >= 1e12) return `${prefix}${(value / 1e12).toFixed(1)}T${suffix}`;
+    if (Math.abs(value) >= 1e9) return `${prefix}${(value / 1e9).toFixed(1)}B${suffix}`;
+    if (Math.abs(value) >= 1e6) return `${prefix}${(value / 1e6).toFixed(1)}M${suffix}`;
+    if (Math.abs(value) >= 1e3) return `${prefix}${(value / 1e3).toFixed(1)}K${suffix}`;
+    return `${prefix}${value}${suffix}`;
   };
 
   const CustomTooltip = ({ active, payload, label }) => {

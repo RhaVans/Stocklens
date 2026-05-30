@@ -13,11 +13,16 @@ export default function SummaryScreen({ stock, result, notes, onRetry }) {
   };
 
   const formatMoney = (val) => {
-    if (!val) return 'N/A';
-    if (Math.abs(val) >= 1e12) return `$${(val / 1e12).toFixed(2)}T`;
-    if (Math.abs(val) >= 1e9) return `$${(val / 1e9).toFixed(2)}B`;
-    if (Math.abs(val) >= 1e6) return `$${(val / 1e6).toFixed(2)}M`;
-    return `$${val.toLocaleString()}`;
+    if (val === undefined || val === null || val === 'N/A') return 'N/A';
+    
+    const currency = stock.currency || 'USD';
+    const prefix = currency === 'USD' ? '$' : '';
+    const suffix = currency !== 'USD' ? ` ${currency}` : '';
+
+    if (Math.abs(val) >= 1e12) return `${prefix}${(val / 1e12).toFixed(2)}T${suffix}`;
+    if (Math.abs(val) >= 1e9) return `${prefix}${(val / 1e9).toFixed(2)}B${suffix}`;
+    if (Math.abs(val) >= 1e6) return `${prefix}${(val / 1e6).toFixed(2)}M${suffix}`;
+    return `${prefix}${val.toLocaleString()}${suffix}`;
   };
 
   const getRoeLabel = (val) => val > 0.15 ? 'Strong' : val > 0.05 ? 'Fair' : 'Weak';
@@ -146,7 +151,7 @@ export default function SummaryScreen({ stock, result, notes, onRetry }) {
               </table>
             </div>
             {stock.incomeHistory.length > 0 && (
-              <RevenueChart data={[...stock.incomeHistory].reverse()} />
+              <RevenueChart data={[...stock.incomeHistory].reverse()} currency={stock.currency} />
             )}
           </div>
 

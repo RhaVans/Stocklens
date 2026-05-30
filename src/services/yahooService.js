@@ -169,9 +169,8 @@ function extractData(data, ticker) {
       year: extractYear(c.endDate),
       operatingCashflow: safe(c, "totalCashFromOperatingActivities") ?? 0,
       capex: safe(c, "capitalExpenditures") ?? 0,
-      fcf:
-        (safe(c, "totalCashFromOperatingActivities") ?? 0) +
-        (safe(c, "capitalExpenditures") ?? 0),
+      fcf: safe(c, "freeCashflow", "freeCashFlow") ?? 
+        ((safe(c, "totalCashFromOperatingActivities") ?? 0) + (safe(c, "capitalExpenditures") ?? 0)),
     })),
   };
 }
