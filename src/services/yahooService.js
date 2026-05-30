@@ -34,21 +34,87 @@ function extractData(data, ticker) {
   const balanceList = data.balanceSheetHistory?.balanceSheetStatements ?? [];
   const cashflowList = data.cashflowStatementHistory?.cashflowStatements ?? [];
 
-  const safe = (obj, key) => {
-    const val = obj?.[key];
-    if (val === undefined || val === null) return null;
-    return typeof val === 'object' && val !== null && 'raw' in val ? val.raw : val;
+  // Safely extract a value — handles both { raw: val } wrappers and direct values
+  const safe = (obj, ...keys) => {
+    for (const key of keys) {
+      const val = obj?.[key];
+      if (val === undefined || val === null) continue;
+      if (typeof val === 'object' && val !== null && 'raw' in val) return val.raw;
+      return val;
+    }
+    return null;
   };
 
   const extractYear = (dateVal) => {
     if (!dateVal) return 'N/A';
-    // yahoo-finance2 returns Date objects; raw API returns { raw: timestamp }
     if (dateVal instanceof Date) return dateVal.getFullYear();
     if (typeof dateVal === 'string') return new Date(dateVal).getFullYear();
     if (typeof dateVal === 'object' && 'raw' in dateVal) return new Date(dateVal.raw * 1000).getFullYear();
     if (typeof dateVal === 'number') return new Date(dateVal * 1000).getFullYear();
     return 'N/A';
   };
+
+  // --- Extract raw values with multiple fallback field names ---
+  const currentPrice = safe(fin, "currentPrice") ?? safe(price, "regularMarketPrice") ?? 0;
+  const dailyChangePercent = safe(price, "regularMarketChangePercent") ?? 0;
+  const marketCap = safe(price, "marketCap") ?? safe(stats, "marketCap") ?? 0;
+
+  const roe = safe(fin, "returnOnEquity") ?? 0;
+  const profitMargin = safe(fin, "profitMargins", "profitMargin") ?? 0;
+  const fcf = safe(fin, "freeCashflow", "freeCashFlow") ?? 0;
+  const revGrowth = safe(fin, "revenueGrowth") ?? 0;
+  const opCashflow = safe(fin, "operatingCashflow") ?? 0;
+  const de = safe(fin, "debtToEquity") ?? null;
+  const cr = safe(fin, "currentRatio") ?? null;
+  const eps = safe(stats, "trailingEps") ?? safe(fin, "earningsPerShare") ?? null;
+  const beta = safe(stats, "beta") ?? null;
+
+  // --- P/E: try multiple sources, then compute ---
+  let pe = safe(stats, "forwardPE", "forwardPe") 
+        ?? safe(stats, "trailingPE", "trailingPe") 
+        ?? safe(fin, "forwardPE");
+  if (!pe && currentPrice > 0 && eps && eps > 0) {
+    pe = currentPrice / eps; // compute from price/EPS
+  }
+
+  // --- P/B: try multiple sources, then compute from balance sheet ---
+  let pb = safe(stats, "priceToBook") ?? safe(fin, "priceToBook");
+  if (!pb && marketCap > 0 && balanceList.length > 0) {
+    const latestEquity = safe(balanceList[0], "totalStockholderEquity");
+    if (latestEquity && latestEquity > 0) {
+      pb = marketCap / latestEquity;
+    }
+  }
+
+  // --- D/E: compute from balance sheet if missing ---
+  let debtToEquity = de;
+  if (debtToEquity === null && balanceList.length > 0) {
+    const totalDebt = safe(balanceList[0], "longTermDebt", "totalLiab") ?? 0;
+    const equity = safe(balanceList[0], "totalStockholderEquity") ?? 0;
+    if (equity > 0) {
+      debtToEquity = (totalDebt / equity) * 100; // Yahoo returns as percentage
+    }
+  }
+
+  // --- Current Ratio: compute from balance sheet if missing ---
+  let currentRatio = cr;
+  if (currentRatio === null && balanceList.length > 0) {
+    const currentAssets = safe(balanceList[0], "totalCurrentAssets") ?? 0;
+    const currentLiabilities = safe(balanceList[0], "totalCurrentLiabilities") ?? 0;
+    if (currentLiabilities > 0) {
+      currentRatio = currentAssets / currentLiabilities;
+    }
+  }
+
+  // --- ROE: compute from income + balance sheet if missing ---
+  let returnOnEquity = roe;
+  if (!returnOnEquity && incomeList.length > 0 && balanceList.length > 0) {
+    const ni = safe(incomeList[0], "netIncome") ?? 0;
+    const eq = safe(balanceList[0], "totalStockholderEquity") ?? 0;
+    if (eq > 0) {
+      returnOnEquity = ni / eq;
+    }
+  }
 
   return {
     // Identity
@@ -60,23 +126,23 @@ function extractData(data, ticker) {
     description: profile.longBusinessSummary ?? "",
 
     // Price
-    currentPrice: safe(price, "regularMarketPrice") ?? 0,
-    dailyChangePercent: safe(price, "regularMarketChangePercent") ?? 0,
-    marketCap: safe(price, "marketCap") ?? 0,
+    currentPrice,
+    dailyChangePercent,
+    marketCap,
     currency: price.currency ?? "USD",
 
-    // Ratios
-    returnOnEquity: safe(fin, "returnOnEquity") ?? 0,
-    profitMargin: safe(fin, "profitMargins") ?? 0,
-    freeCashFlow: safe(fin, "freeCashflow") ?? 0,
-    revenueGrowth: safe(fin, "revenueGrowth") ?? 0,
-    operatingCashflow: safe(fin, "operatingCashflow") ?? 0,
-    debtToEquity: safe(fin, "debtToEquity") ?? 0,
-    currentRatio: safe(fin, "currentRatio") ?? 0,
-    peRatio: safe(stats, "forwardPE") ?? 0,
-    pbRatio: safe(stats, "priceToBook") ?? 0,
-    eps: safe(stats, "trailingEps") ?? 0,
-    beta: safe(stats, "beta") ?? 0,
+    // Ratios (with computed fallbacks)
+    returnOnEquity: returnOnEquity ?? 0,
+    profitMargin,
+    freeCashFlow: fcf,
+    revenueGrowth: revGrowth,
+    operatingCashflow: opCashflow,
+    debtToEquity: debtToEquity ?? 0,
+    currentRatio: currentRatio ?? 0,
+    peRatio: pe ?? 0,
+    pbRatio: pb ?? 0,
+    eps: eps ?? 0,
+    beta: beta ?? 0,
 
     // Historical (last 3 years)
     incomeHistory: incomeList.slice(0, 3).map((i) => ({
