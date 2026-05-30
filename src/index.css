@@ -75,3 +75,60 @@ body {
     transform: translateY(0);
   }
 }
+
+/* --- PRINT / PDF EXPORT STYLES --- */
+@media print {
+  @page {
+    size: auto;
+    margin: 15mm;
+  }
+  
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+
+  /* Remove dark backgrounds and borders */
+  .glass, .glass-card, [class*="bg-[#1a1a2e]"], [class*="bg-black"], [class*="bg-[#09090b]"] {
+    background: white !important;
+    backdrop-filter: none !important;
+    border: 1px solid #d1d5db !important; /* light gray border */
+    box-shadow: none !important;
+    color: black !important;
+  }
+
+  /* Force text colors to be legible on white */
+  h1, h2, h3, p, span, div, td, th {
+    color: black !important;
+  }
+
+  /* Specific color overrides for accents to keep meaning but be legible */
+  .text-\[color\:var\(--color-muted\)\] { color: #6b7280 !important; }
+  .text-\[color\:var\(--color-accent\)\] { color: #0369a1 !important; }
+  .text-\[color\:var\(--color-success\)\] { color: #15803d !important; }
+  .text-\[color\:var\(--color-warning\)\] { color: #b45309 !important; }
+  .text-\[color\:var\(--color-danger\)\] { color: #b91c1c !important; }
+  
+  /* Buttons and interactive elements */
+  button, .no-print {
+    display: none !important;
+  }
+
+  /* Progress bars (ScoreBar) should have a visible outline if empty */
+  .bg-white\/10 { background-color: #e5e7eb !important; }
+  
+  /* Tables */
+  table { width: 100% !important; border-collapse: collapse !important; }
+  th, td { border-bottom: 1px solid #d1d5db !important; }
+  th { color: #4b5563 !important; font-weight: bold !important; }
+
+  /* Charts - Recharts uses SVG, make sure lines and text are dark */
+  .recharts-text { fill: #374151 !important; }
+  .recharts-cartesian-grid-line { stroke: #e5e7eb !important; }
+  
+  /* Prevent page breaks inside cards */
+  .glass-card, .mb-14 {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}
