@@ -40,6 +40,16 @@ function extractData(data, ticker) {
     return typeof val === 'object' && val !== null && 'raw' in val ? val.raw : val;
   };
 
+  const extractYear = (dateVal) => {
+    if (!dateVal) return 'N/A';
+    // yahoo-finance2 returns Date objects; raw API returns { raw: timestamp }
+    if (dateVal instanceof Date) return dateVal.getFullYear();
+    if (typeof dateVal === 'string') return new Date(dateVal).getFullYear();
+    if (typeof dateVal === 'object' && 'raw' in dateVal) return new Date(dateVal.raw * 1000).getFullYear();
+    if (typeof dateVal === 'number') return new Date(dateVal * 1000).getFullYear();
+    return 'N/A';
+  };
+
   return {
     // Identity
     ticker: ticker.toUpperCase(),
@@ -70,14 +80,14 @@ function extractData(data, ticker) {
 
     // Historical (last 3 years)
     incomeHistory: incomeList.slice(0, 3).map((i) => ({
-      year: new Date(i.endDate?.raw * 1000).getFullYear(),
+      year: extractYear(i.endDate),
       revenue: safe(i, "totalRevenue") ?? 0,
       netIncome: safe(i, "netIncome") ?? 0,
       grossProfit: safe(i, "grossProfit") ?? 0,
     })),
 
     balanceHistory: balanceList.slice(0, 3).map((b) => ({
-      year: new Date(b.endDate?.raw * 1000).getFullYear(),
+      year: extractYear(b.endDate),
       totalAssets: safe(b, "totalAssets") ?? 0,
       totalLiabilities: safe(b, "totalLiab") ?? 0,
       equity: safe(b, "totalStockholderEquity") ?? 0,
@@ -85,7 +95,7 @@ function extractData(data, ticker) {
     })),
 
     cashflowHistory: cashflowList.slice(0, 3).map((c) => ({
-      year: new Date(c.endDate?.raw * 1000).getFullYear(),
+      year: extractYear(c.endDate),
       operatingCashflow: safe(c, "totalCashFromOperatingActivities") ?? 0,
       capex: safe(c, "capitalExpenditures") ?? 0,
       fcf:

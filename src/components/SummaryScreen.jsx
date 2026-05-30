@@ -15,10 +15,28 @@ export default function SummaryScreen({ stock, result, notes, onRetry }) {
     
     try {
       const element = printRef.current;
+      
+      // Temporarily remove backdrop-filter (html2canvas doesn't support it)
+      const glassEls = element.querySelectorAll('.glass, .glass-card');
+      glassEls.forEach(el => {
+        el.dataset.origBg = el.style.backgroundColor || '';
+        el.style.backdropFilter = 'none';
+        el.style.webkitBackdropFilter = 'none';
+        el.style.backgroundColor = '#1a1a2e';
+      });
+      
       const canvas = await html2canvas(element, {
         scale: 2,
-        backgroundColor: '#0D0D0D',
-        logging: false
+        backgroundColor: '#09090b',
+        logging: false,
+        useCORS: true,
+      });
+      
+      // Restore backdrop-filter
+      glassEls.forEach(el => {
+        el.style.backdropFilter = '';
+        el.style.webkitBackdropFilter = '';
+        el.style.backgroundColor = el.dataset.origBg;
       });
       
       const imgData = canvas.toDataURL('image/png');
@@ -29,13 +47,28 @@ export default function SummaryScreen({ stock, result, notes, onRetry }) {
       });
       
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      const pdfPageHeight = pdf.internal.pageSize.getHeight();
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
       
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      let heightLeft = imgHeight;
+      let position = 0;
+      
+      // First page
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+      heightLeft -= pdfPageHeight;
+      
+      // Additional pages if content is long
+      while (heightLeft > 0) {
+        position -= pdfPageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+        heightLeft -= pdfPageHeight;
+      }
+      
       pdf.save(`${stock.ticker}_research.pdf`);
     } catch (err) {
       console.error('Export failed:', err);
-      alert('Failed to export PDF');
+      alert('Failed to export PDF. Error: ' + err.message);
     }
   };
 

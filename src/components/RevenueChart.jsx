@@ -15,7 +15,7 @@ export default function RevenueChart({ data }) {
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-[color:var(--color-surface)] border border-gray-700 p-3 rounded-lg shadow-xl">
+        <div className="bg-[#1a1a2e] border border-white/10 p-3 rounded-xl shadow-xl">
           <p className="text-gray-400 text-xs mb-1">{label}</p>
           <p className="text-white font-mono">{formatValue(payload[0].value)}</p>
         </div>
