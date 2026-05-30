@@ -61,7 +61,12 @@ function extractData(data, ticker) {
 
   const roe = safe(fin, "returnOnEquity") ?? 0;
   const profitMargin = safe(fin, "profitMargins", "profitMargin") ?? 0;
-  const fcf = safe(fin, "freeCashflow", "freeCashFlow") ?? 0;
+  let fcf = safe(fin, "freeCashflow", "freeCashFlow") ?? null;
+  if (fcf === null && cashflowList.length > 0) {
+    const recentOpCash = safe(cashflowList[0], "totalCashFromOperatingActivities") ?? 0;
+    const recentCapex = safe(cashflowList[0], "capitalExpenditures") ?? 0;
+    fcf = recentOpCash + recentCapex; // capex is usually negative in Yahoo
+  }
   const revGrowth = safe(fin, "revenueGrowth") ?? 0;
   const opCashflow = safe(fin, "operatingCashflow") ?? 0;
   const de = safe(fin, "debtToEquity") ?? null;
@@ -134,7 +139,7 @@ function extractData(data, ticker) {
     // Ratios (with computed fallbacks)
     returnOnEquity: returnOnEquity ?? 0,
     profitMargin,
-    freeCashFlow: fcf,
+    freeCashFlow: fcf ?? 0,
     revenueGrowth: revGrowth,
     operatingCashflow: opCashflow,
     debtToEquity: debtToEquity ?? 0,
